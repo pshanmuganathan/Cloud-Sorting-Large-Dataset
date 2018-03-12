@@ -1,0 +1,163 @@
+Folder Structure:
+Code_Script -> Code contains all the code & Scripts
+Configuration Files	 -> contains all the Hadoop Config files 
+README.txt -> ReadMe file
+prog2-report.pdf -> Report & Design Doc for PA2 implementation
+
+
+Shared Memory:
+The main aim of this code is to perform sorting on large datasets, considering this I have opted for Quick Sort and k-way external merge sort.
+The program performs sorting for 128GB and 1TB datasets, where key is of 10 Bytes and value of 90 Bytes.
+Sorting is performed based on the key’s ASCII value. 
+1. Shared Memory 128GB
+
+	Open the folder Code_Script which contains the Scripts to implement Shared Memory Sort
+	Launch an instance of type i3.large, 
+	Use RAID and mount by entering the following commands,
+		sudo apt-get update
+
+		sudo apt-get install mdadm
+
+
+		echo "Creating file system"
+
+		lsblk
+
+		sudo file -s /dev/nvme0n1
+
+		sudo mkfs -t ext4 /dev/nvme0n1
+
+		sudo mkdir /data
+sudo mount /dev/nvme0n1 /data
+	Install java be typing the below on terminal.
+		sudo apt-get update
+		sudo apt-get install openjdk-8-jdk
+	Install gensort by typing onto instance terminal, 
+		wget http://www.ordinal.com/try.cgi/gensort-linux-1.5.tar.gz
+		tar xvf gensort-linux-1.5.tar.gz
+		rm gensort-linux-1.5.tar.gz  
+	goto folder named "64" created, cd 64
+	execute the Script, for 128GB
+		sh SharedMem.sh -> will execute the script for 1 thread, 
+		for more threads edit the number of threads passed as a parameter to the java command to 2,4,8
+	a final MergedOutput.txt file will be created which is the sorted output file
+
+
+2. Shared Memory 1TB
+
+	Open the folder Code_Script which contains the Scripts to implement Shared Memory Sort
+	Launch an instance of type i3.4xlarge, 
+	Use RAID and mount by entering the following commands,
+		echo "Installing mdadm"
+
+		sudo apt-get update
+
+		sudo apt-get install mdadm
+
+
+		echo "changing to raid 0"
+
+		lsblk
+
+		sudo mdadm --create --verbose /dev/md0 --level=0 --name=Cloud --raid-devices=2 /dev/nvme0n1 /dev/nvme1n1
+		sudo mkfs.ext4 -L Cloud /dev/md0
+sudo 
+		mkdir -p /data/raid
+
+		sudo mount LABEL=Cloud /data/raid
+	Install gensort by typing onto instance terminal, 
+		wget http://www.ordinal.com/try.cgi/gensort-linux-1.5.tar.gz
+		tar xvf gensort-linux-1.5.tar.gz
+		rm gensort-linux-1.5.tar.gz  
+	goto folder named "64" created, cd 64
+	execute the Script, for 1TB
+		sh SharedMem1TB.sh -> will execute the script for 1 thread, 
+		for more threads edit the number of threads passed as a parameter to the java command to 2,4,8
+	a final MergedOutput.txt file will be created which is the sorted output file
+
+
+
+
+Hadoop Tera Sort:
+Used Hadoop’s Map-Reduce based implementation to sort large datasets.
+Hadoop has a Sort and Shuffle phase, which does the Sorting of data internally, without writing any code particularly for sort.
+I have utilized the same in my code, I have provided the mapper with input as key (10 Bytes) and value(90 Bytes), the Sort and Shuffle phase will categorize the data and sort them according to its Key.
+The reducer here just has to do the work of emitting the output given by the Sort and Shuffle phase, hence I have used the Identity reducer which will perform the same job as reducer here will.
+I have tested the performance of hadoop on 1-Node (128GB, 1TB) and 8-Node (1TBGB).
+
+1. Hadoop 128 GB and 1 TB
+	Open the folder Code_Script which contains the Scripts to implement Hadoop Sort
+	Launch an instance of type i3.large and i3.4xlarge
+	Download and untar the hadoop
+		Download wget http://www.apache.org/dyn/closer.cgi/hadoop/common/hadoop-2.8.2/hadoop-2.8.2.tar.gz
+		tar -xvzf hadoop-2.8.2.tar.gz mv hadoop-2.8.2.tar.gz hadoop
+	Download the gensort
+		Download wget http://www.ordinal.com/try.cgi/gensort-linux-1.5.tar.gz
+		Tar -xvzf gensort-linux-1.5.tar.gz
+	Generate the key	
+		ssh root@localhost
+		ssh-keygen -t rsa
+		cd .ssh
+		cat id_rsa.pub
+	Mount the disk
+		sudo apt-get install mdadm
+		lsblk
+		sudo file -s /dev/nvme0n1
+		sudo mkfs -t ext4 /dev/nvme0n1
+		sudo mkdir /data
+		sudo mount /dev/nvme0n1 /data
+	mv Hadoop /data
+	cd /data/Hadoop/etc/hadoop
+	Make changes in below configuration file and their properties
+		hdfs-site.xml
+		core-site.xml
+		yarn-site.xml
+		mapred-site.xml
+		slaves
+		hadoop-env.sh
+		~/.bashrc
+	Execute the script for 128 GB and 1 TB
+		TeraSortHadoop128GBScript.sh -> It will create the input file of 128 GB and run the haddop sort. 
+						After this it will validate the result using valsort
+		TeraSortHadoop1TBScript.sh -> It will create the input file of 1 TB and run the haddop sort. 
+						After this it will validate the result using valsort
+
+
+
+
+
+Spark Sort
+The code for spark is written using spark shell, which uses Scala as a programming language.
+Spark also uses the same Map-Reduce based implementation as Hadoop does.
+When installing Spark it installs various features and language packages, like Scala, R-Studio, Python, specifically for Spark.
+Implemented sorting using scala’s sortByKey(), functionality, which sorts the data based on Key value (10 Bytes). The sorted data obtained using spark, is divided into chunks.
+I have also implemented the same using Python programming and PySpark package.
+	Open the folder Code_Script which contains the Scripts to implement Spark code
+	Install Hadoop
+	Download and untar Spark
+		wget https://d3kbcqa49mib13.cloudfront.net/spark-2.2.0-bin-hadoop2.7.tgz
+		sudo tar zxvf spark-2.2.0-bin-hadoop2.7.tgz /opt
+	sudo ln -fs spark-2.2.0-bin-hadoop2.7 /opt/spark
+	install python
+	Update ~/.bashrc
+		export SPARK_HOME=/opt/spark
+		PATH=$PATH:$SPARK_HOME/bin
+		export PATH
+		source ~/.bashrc
+	export AWS_ACCESS_KEY_ID=<ACCESS_KEY>
+	export AWS_SECRET_KEY=<SECRET_KEY> 
+	goto folder, /spark/ec2 in your spark downloaded folder type, the command to launch master and slave instances
+		./spark-ec2 –k CloudSorting -i /home/ubuntu/CloudSorting.pem  -s 8 --instance-type=i3.large –ebs-vol-size=50 -r us-east-2 -m i3.large launch sparkInstances
+	Mount the disk
+	cd ~
+	cd spark-ec2/bin
+	./spark-shell
+	Execute the script for 128 GB and 1 TB
+		scala128GBScript.sh -> It will execute the spark code for 128 GB
+		scala1TBScript.sh -> It will execute the spark code for 1 TB
+
+	
+
+ 
+
+		
